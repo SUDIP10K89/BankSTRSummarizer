@@ -10,6 +10,7 @@ from __future__ import annotations
 import argparse
 import os
 import re
+from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import Any
 
@@ -167,6 +168,36 @@ def contains_value(summary: str, value: Any) -> bool:
     return value_text.casefold() in summary.casefold()
 
 
+def extract_numeric_amounts(text: Any) -> list[Decimal]:
+    """Extract amount-like numbers, accepting comma or plain formatting."""
+    cleaned = clean(text, fallback="")
+    if not cleaned:
+        return []
+
+    amounts: list[Decimal] = []
+    for match in re.findall(r"(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?", cleaned):
+        try:
+            amounts.append(Decimal(match.replace(",", "")))
+        except InvalidOperation:
+            continue
+
+    return amounts
+
+
+def contains_amount(summary: str, expected_amount: Any) -> bool:
+    """Check amount preservation by numeric value, not display formatting."""
+    expected_numbers = extract_numeric_amounts(expected_amount)
+    if not expected_numbers:
+        return True
+
+    summary_numbers = extract_numeric_amounts(summary)
+    for expected in expected_numbers:
+        if any(abs(found - expected) <= Decimal("0.01") for found in summary_numbers):
+            return True
+
+    return False
+
+
 def validate_summary(summary: str, row: pd.Series) -> dict[str, Any]:
     """Lightweight factual-preservation checks for generated output."""
     words = word_count(summary)
@@ -175,7 +206,7 @@ def validate_summary(summary: str, row: pd.Series) -> dict[str, Any]:
         "length_ok": 100 <= words <= 200,
         "has_customer": contains_value(summary, row.get("entities_customer_names")),
         "has_counterparty": contains_value(summary, row.get("entities_counterparty_names")),
-        "has_amount": contains_value(summary, row.get("entities_amounts")),
+        "has_amount": contains_amount(summary, row.get("entities_amounts")),
         "has_date": contains_value(summary, row.get("entities_dates")),
         "has_transaction_mode": contains_value(
             summary, row.get("entities_transaction_modes")
