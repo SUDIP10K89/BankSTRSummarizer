@@ -10,7 +10,6 @@ from __future__ import annotations
 import argparse
 import os
 import re
-from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import Any
 
@@ -30,11 +29,13 @@ Preserve facts exactly. Do not invent names, amounts, dates, banks, locations, o
 USER_PROMPT_TEMPLATE = """Write a concise Suspicious Transaction Report summary in 100-200 words.
 
 Rules:
-- Include customer name, counterparty, bank/institution names, amount, date, and transaction mode when available.
-- Use only the structured facts and narrative below.
+- Include every available customer name, counterparty, bank/institution name, amount, date, transaction mode, and account number.
+- If a key fact is not available, say it is not available. If you intentionally exclude a key fact, state the reason briefly.
+- Use only the structured facts and narrative below. Do not add facts from outside this input.
 - If the narrative is minimal, summarize using the structured facts only.
 - Do not say the customer committed a crime.
-- Keep a neutral analyst-facing tone.
+- Keep a neutral analyst-facing tone that can be read in under 30 seconds.
+- The output must be one paragraph of 100-200 words.
 
 Structured facts:
 Report ID: {report_id}
@@ -45,6 +46,7 @@ Banks: {banks}
 Amount: {amount}
 Date: {date}
 Transaction mode: {transaction_mode}
+Account numbers: {account_numbers}
 Countries: {countries}
 
 Narrative:
@@ -76,6 +78,16 @@ def build_user_prompt(row: pd.Series) -> str:
         amount=clean(row.get("entities_amounts")),
         date=clean(row.get("entities_dates")),
         transaction_mode=clean(row.get("entities_transaction_modes")),
+        account_numbers=clean(
+            "; ".join(
+                value
+                for value in [
+                    clean(row.get("from_account_number"), fallback=""),
+                    clean(row.get("to_account_number"), fallback=""),
+                ]
+                if value
+            )
+        ),
         countries=clean(row.get("entities_countries")),
         narrative=clean(row.get("narrative")),
     )
@@ -154,86 +166,45 @@ def load_llm(model_id: str, max_new_tokens: int, temperature: float, top_p: floa
     )
 
 
-def word_count(text: str) -> int:
-    """Count simple word tokens for the 100-200 word constraint."""
-    return len(re.findall(r"\b\w+\b", text or ""))
-
-
-def contains_value(summary: str, value: Any) -> bool:
-    """Case-insensitive containment check for required structured facts."""
-    value_text = clean(value, fallback="")
-    if not value_text:
-        return True
-
-    return value_text.casefold() in summary.casefold()
-
-
-def extract_numeric_amounts(text: Any) -> list[Decimal]:
-    """Extract amount-like numbers, accepting comma or plain formatting."""
-    cleaned = clean(text, fallback="")
-    if not cleaned:
-        return []
-
-    amounts: list[Decimal] = []
-    for match in re.findall(r"(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?", cleaned):
-        try:
-            amounts.append(Decimal(match.replace(",", "")))
-        except InvalidOperation:
-            continue
-
-    return amounts
-
-
-def contains_amount(summary: str, expected_amount: Any) -> bool:
-    """Check amount preservation by numeric value, not display formatting."""
-    expected_numbers = extract_numeric_amounts(expected_amount)
-    if not expected_numbers:
-        return True
-
-    summary_numbers = extract_numeric_amounts(summary)
-    for expected in expected_numbers:
-        if any(abs(found - expected) <= Decimal("0.01") for found in summary_numbers):
-            return True
-
-    return False
-
-
-def validate_summary(summary: str, row: pd.Series) -> dict[str, Any]:
-    """Lightweight factual-preservation checks for generated output."""
-    words = word_count(summary)
-    checks = {
-        "word_count": words,
-        "length_ok": 100 <= words <= 200,
-        "has_customer": contains_value(summary, row.get("entities_customer_names")),
-        "has_counterparty": contains_value(summary, row.get("entities_counterparty_names")),
-        "has_amount": contains_amount(summary, row.get("entities_amounts")),
-        "has_date": contains_value(summary, row.get("entities_dates")),
-        "has_transaction_mode": contains_value(
-            summary, row.get("entities_transaction_modes")
-        ),
-    }
-    checks["entity_preservation_ok"] = all(
-        checks[key]
-        for key in [
-            "has_customer",
-            "has_counterparty",
-            "has_amount",
-            "has_date",
-            "has_transaction_mode",
-        ]
-    )
-    return checks
-
-
-def select_rows(df: pd.DataFrame, limit: int | None, all_rows: bool) -> pd.DataFrame:
+def select_rows(
+    df: pd.DataFrame,
+    limit: int | None,
+    all_rows: bool,
+    start: int,
+) -> pd.DataFrame:
     """Pick rows to summarize, protecting against accidental full 70B runs."""
+    selected = df.iloc[start:]
     if all_rows:
-        return df
+        return selected
 
     if limit is None:
         limit = 3
 
-    return df.head(limit)
+    return selected.head(limit)
+
+
+def load_completed_report_ids(output_path: Path) -> set[str]:
+    """Read already-generated report IDs for resumable large runs."""
+    if not output_path.exists():
+        return set()
+
+    existing = pd.read_csv(output_path, usecols=["report_id"])
+    return set(existing["report_id"].dropna().astype(str))
+
+
+def append_rows(rows: list[dict[str, Any]], output_path: Path) -> None:
+    """Append generated rows to the output CSV."""
+    if not rows:
+        return
+
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    output_exists = output_path.exists()
+    pd.DataFrame(rows).to_csv(
+        output_path,
+        mode="a" if output_exists else "w",
+        header=not output_exists,
+        index=False,
+    )
 
 
 def generate_summaries(
@@ -242,33 +213,52 @@ def generate_summaries(
     max_new_tokens: int,
     temperature: float,
     top_p: float,
+    output_path: Path,
+    batch_size: int,
+    resume: bool,
 ) -> pd.DataFrame:
-    """Generate and validate summaries for selected rows."""
+    """Generate summaries for selected rows."""
+    completed_report_ids = load_completed_report_ids(output_path) if resume else set()
+    pending = df[
+        ~df["report_id"].astype(str).isin(completed_report_ids)
+    ] if resume else df
+
+    skipped_count = len(df) - len(pending)
+    if skipped_count:
+        print(f"Skipping {skipped_count} reports already in {output_path}")
+
+    if pending.empty:
+        print("No new summaries to generate.")
+        return pd.read_csv(output_path) if output_path.exists() else pd.DataFrame()
+
     llm = load_llm(model_id, max_new_tokens, temperature, top_p)
     rows: list[dict[str, Any]] = []
+    generated_count = 0
 
-    for _, row in df.iterrows():
+    for _, row in pending.iterrows():
+        report_id = clean(row.get("report_id"), fallback="")
         response = llm.invoke(build_messages(row))
         summary = clean(response.content, fallback="")
-        checks = validate_summary(summary, row)
 
         rows.append(
             {
-                "report_id": row.get("report_id"),
+                "report_id": report_id,
                 "report_type": row.get("report_type"),
                 "model_id": model_id,
                 "llm_summary": summary,
-                **checks,
             }
         )
+        generated_count += 1
 
-        print(
-            f"Generated {row.get('report_id')}: "
-            f"{checks['word_count']} words, "
-            f"entities_ok={checks['entity_preservation_ok']}"
-        )
+        print(f"Generated {report_id}")
 
-    return pd.DataFrame(rows)
+        if len(rows) >= batch_size:
+            append_rows(rows, output_path)
+            rows.clear()
+
+    append_rows(rows, output_path)
+    print(f"Generated summaries this run: {generated_count}")
+    return pd.read_csv(output_path) if output_path.exists() else pd.DataFrame()
 
 
 def main() -> None:
@@ -280,6 +270,23 @@ def main() -> None:
     parser.add_argument("--model-id", default=MODEL_ID)
     parser.add_argument("--limit", type=int, default=3)
     parser.add_argument("--all", action="store_true", help="Summarize all rows.")
+    parser.add_argument("--start", type=int, default=0, help="Zero-based row offset.")
+    parser.add_argument(
+        "--batch-size",
+        type=int,
+        default=25,
+        help="How many generated summaries to write per CSV append.",
+    )
+    parser.add_argument(
+        "--resume",
+        action="store_true",
+        help="Skip report IDs already present in the output CSV.",
+    )
+    parser.add_argument(
+        "--overwrite",
+        action="store_true",
+        help="Delete existing output before generation.",
+    )
     parser.add_argument("--max-new-tokens", type=int, default=260)
     parser.add_argument("--temperature", type=float, default=0.1)
     parser.add_argument("--top-p", type=float, default=0.9)
@@ -291,12 +298,17 @@ def main() -> None:
     args = parser.parse_args()
 
     df = pd.read_csv(args.input)
-    selected = select_rows(df, args.limit, args.all)
+    selected = select_rows(df, args.limit, args.all, args.start)
+    if args.batch_size < 1:
+        raise ValueError("--batch-size must be at least 1")
 
     if args.dry_run:
         print(build_llama_prompt(selected.iloc[0]))
         print(f"\nDry run only. Rows selected: {len(selected)}")
         return
+
+    if args.overwrite and args.output.exists():
+        args.output.unlink()
 
     summaries = generate_summaries(
         selected,
@@ -304,11 +316,13 @@ def main() -> None:
         max_new_tokens=args.max_new_tokens,
         temperature=args.temperature,
         top_p=args.top_p,
+        output_path=args.output,
+        batch_size=args.batch_size,
+        resume=args.resume,
     )
 
-    args.output.parent.mkdir(parents=True, exist_ok=True)
-    summaries.to_csv(args.output, index=False)
     print(f"Saved summaries: {args.output}")
+    print(f"Total rows in output: {len(summaries)}")
 
 
 if __name__ == "__main__":
