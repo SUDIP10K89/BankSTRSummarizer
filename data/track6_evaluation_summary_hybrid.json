@@ -1,0 +1,17 @@
+{
+  "average_word_count": 75.3,
+  "critical_entity_preservation_ok_rate": 0.6377,
+  "has_account_numbers_rate": 0.0,
+  "has_amount_rate": 0.6377,
+  "has_banks_rate": 0.6377,
+  "has_counterparty_rate": 0.6377,
+  "has_customer_rate": 1.0,
+  "has_date_rate": 0.6377,
+  "has_transaction_mode_rate": 0.6377,
+  "length_ok_rate": 0.6377,
+  "max_word_count": 118,
+  "min_word_count": 9,
+  "overall_ok_rate": 0.6377,
+  "strict_entity_preservation_ok_rate": 0.0,
+  "total_summaries": 276
+}
