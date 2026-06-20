@@ -1,3 +1,0 @@
-pandas
-langchain-huggingface
-huggingface-hub
