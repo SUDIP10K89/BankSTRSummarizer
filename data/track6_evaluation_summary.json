@@ -1,5 +1,5 @@
 {
-  "average_word_count": 117.58,
+  "average_word_count": 116.33,
   "critical_entity_preservation_ok_rate": 1.0,
   "has_account_numbers_rate": 1.0,
   "has_amount_rate": 1.0,
@@ -13,5 +13,5 @@
   "min_word_count": 92,
   "overall_ok_rate": 0.8333,
   "strict_entity_preservation_ok_rate": 1.0,
-  "total_summaries": 12
+  "total_summaries": 6
 }

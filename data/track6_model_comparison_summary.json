@@ -1,0 +1,59 @@
+{
+  "best_model": "llm",
+  "models": [
+    {
+      "average_bertscore_f1": null,
+      "average_rouge_l_f1": null,
+      "average_word_count": 116.33,
+      "critical_entity_preservation_ok_rate": 1.0,
+      "has_account_numbers_rate": 1.0,
+      "has_amount_rate": 1.0,
+      "has_banks_rate": 1.0,
+      "has_counterparty_rate": 1.0,
+      "has_customer_rate": 1.0,
+      "has_date_rate": 1.0,
+      "has_transaction_mode_rate": 1.0,
+      "length_ok_rate": 0.8333,
+      "model": "llm",
+      "overall_ok_rate": 0.8333,
+      "strict_entity_preservation_ok_rate": 1.0,
+      "total_summaries": 6
+    },
+    {
+      "average_bertscore_f1": null,
+      "average_rouge_l_f1": null,
+      "average_word_count": 75.3,
+      "critical_entity_preservation_ok_rate": 0.6377,
+      "has_account_numbers_rate": 0.0,
+      "has_amount_rate": 0.6377,
+      "has_banks_rate": 0.6377,
+      "has_counterparty_rate": 0.6377,
+      "has_customer_rate": 1.0,
+      "has_date_rate": 0.6377,
+      "has_transaction_mode_rate": 0.6377,
+      "length_ok_rate": 0.6377,
+      "model": "hybrid",
+      "overall_ok_rate": 0.6377,
+      "strict_entity_preservation_ok_rate": 0.0,
+      "total_summaries": 276
+    },
+    {
+      "average_bertscore_f1": null,
+      "average_rouge_l_f1": null,
+      "average_word_count": 121.11,
+      "critical_entity_preservation_ok_rate": 0.0,
+      "has_account_numbers_rate": 0.0,
+      "has_amount_rate": 0.0,
+      "has_banks_rate": 0.0399,
+      "has_counterparty_rate": 0.6232,
+      "has_customer_rate": 1.0,
+      "has_date_rate": 0.6377,
+      "has_transaction_mode_rate": 0.1413,
+      "length_ok_rate": 0.6377,
+      "model": "extractive",
+      "overall_ok_rate": 0.0,
+      "strict_entity_preservation_ok_rate": 0.0,
+      "total_summaries": 276
+    }
+  ]
+}
