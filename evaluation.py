@@ -24,6 +24,7 @@ REPORTS_PATH = PROJECT_ROOT / "data" / "track6_reports_with_entities.csv"
 SUMMARIES_PATH = PROJECT_ROOT / "data" / "track6_llm_summaries.csv"
 OUTPUT_PATH = PROJECT_ROOT / "data" / "track6_evaluation_results.csv"
 SUMMARY_PATH = PROJECT_ROOT / "data" / "track6_evaluation_summary.json"
+DEFAULT_SUMMARY_COLUMN = "summary"
 EVALUATION_COLUMNS = [
     "word_count",
     "length_ok",
@@ -328,7 +329,7 @@ def main() -> None:
     parser.add_argument("--summaries", type=Path, default=SUMMARIES_PATH)
     parser.add_argument("--output", type=Path, default=OUTPUT_PATH)
     parser.add_argument("--summary-output", type=Path, default=SUMMARY_PATH)
-    parser.add_argument("--summary-column", default="llm_summary")
+    parser.add_argument("--summary-column", default=DEFAULT_SUMMARY_COLUMN)
     parser.add_argument(
         "--reference-column",
         default=None,

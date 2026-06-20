@@ -245,7 +245,7 @@ def generate_summaries(
                 "report_id": report_id,
                 "report_type": row.get("report_type"),
                 "model_id": model_id,
-                "llm_summary": summary,
+                "summary": summary,
             }
         )
         generated_count += 1
