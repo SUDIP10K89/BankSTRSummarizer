@@ -1,0 +1,5 @@
+model,total_summaries,average_word_count,length_ok_rate,critical_entity_preservation_ok_rate,strict_entity_preservation_ok_rate,overall_ok_rate,has_customer_rate,has_counterparty_rate,has_banks_rate,has_amount_rate,has_date_rate,has_transaction_mode_rate,has_account_numbers_rate
+LLM API,10,117.7,0.8,1.0,1.0,0.8,1.0,1.0,1.0,1.0,1.0,1.0,1.0
+Hybrid,276,75.3,0.6377,0.6377,0.0,0.6377,1.0,0.6377,0.6377,0.6377,0.6377,0.6377,0.0
+Extractive,276,121.11,0.6377,0.0,0.0,0.0,1.0,0.6232,0.0399,0.0,0.6377,0.1413,0.0
+Local LLM,10,101.0,0.6,0.0,0.0,0.0,1.0,1.0,0.6,0.6,0.7,0.3,0.7
