@@ -288,4 +288,4 @@ The `reports/` directory and all derived CSVs contain **synthetic/sample data** 
 
 ## 10. Status
 
-This is a hackathon/challenge project (Track 6: STR summarization). There is currently no license file, no CI pipeline, and no published releases — treat it as a working prototype rather than a production-ready package.
+This is a hackathon/challenge project (Track 6: STR summarization).
