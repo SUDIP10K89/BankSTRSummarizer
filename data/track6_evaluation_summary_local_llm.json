@@ -1,17 +1,17 @@
 {
-  "average_word_count": 104.65,
-  "critical_entity_preservation_ok_rate": 0.7,
-  "has_account_numbers_rate": 0.7,
-  "has_amount_rate": 0.9,
-  "has_banks_rate": 0.8,
+  "average_word_count": 97.0,
+  "critical_entity_preservation_ok_rate": 0.72,
+  "has_account_numbers_rate": 0.76,
+  "has_amount_rate": 0.92,
+  "has_banks_rate": 0.84,
   "has_counterparty_rate": 1.0,
-  "has_customer_rate": 1.0,
+  "has_customer_rate": 0.96,
   "has_date_rate": 1.0,
   "has_transaction_mode_rate": 1.0,
-  "length_ok_rate": 0.6,
+  "length_ok_rate": 0.52,
   "max_word_count": 198,
-  "min_word_count": 42,
-  "overall_ok_rate": 0.4,
-  "strict_entity_preservation_ok_rate": 0.5,
-  "total_summaries": 20
+  "min_word_count": 35,
+  "overall_ok_rate": 0.36,
+  "strict_entity_preservation_ok_rate": 0.56,
+  "total_summaries": 25
 }

@@ -39,25 +39,86 @@ def extract_context(narrative):
     return " ".join([s for s in sentences if any(k in s.lower() for k in keywords)])
 
 def hybrid_summary(narrative, ents):
-    customers = ents.get("customer_names")
-    counterparties = ents.get("counterparty_names")
-    banks = ents.get("bank_names")
-    amounts = ents.get("amounts")
-    dates = ents.get("dates")
-    modes = ents.get("transaction_modes")
+    customers = ents.get("customer_names") or []
+    counterparties = ents.get("counterparty_names") or []
+    banks = ents.get("bank_names") or []
+    amounts = ents.get("amounts") or []
+    dates = ents.get("dates") or []
+    modes = ents.get("transaction_modes") or []
 
     context = extract_context(narrative)
 
-    summary = (
-        f"Customer {format_list(customers, 'unknown')} at {format_list(banks, 'unknown bank')} "
-        f"conducted {format_list(modes, 'a')} transaction totaling {format_amount(amounts)} "
-        f"on {format_date(dates)} to {format_list(counterparties, 'unknown party')}. "
-        f"{context}"
-    )
+    # Build summary with all required entities
+    summary_parts = []
+    
+    # Customer
+    if customers:
+        summary_parts.append(f"Customer {', '.join(customers)}")
+    else:
+        summary_parts.append("Customer unknown")
+    
+    # Banks
+    if banks:
+        summary_parts.append(f"at {', '.join(banks)}")
+    
+    # Transaction mode
+    if modes:
+        summary_parts.append(f"conducted {', '.join(modes).lower()}")
+    else:
+        summary_parts.append("conducted a transaction")
+    
+    # Amount
+    if amounts:
+        summary_parts.append(f"totaling {'; '.join(amounts)}")
+    
+    # Date
+    if dates:
+        date_str = f"{dates[0]} to {dates[-1]}" if len(dates) > 1 else dates[0]
+        summary_parts.append(f"on {date_str}")
+    
+    # Counterparty
+    if counterparties:
+        summary_parts.append(f"to {', '.join(counterparties)}")
+    
+    summary = " ".join(summary_parts) + ". "
+    
+    if context:
+        summary += context
+    
     return summary
 
 def type_a_summary(ents):
-    return f"Customer {', '.join(ents.get('customer_names') or ['unknown'])} performed a transaction flagged for review."
+    """Enhanced Type-A summary that includes structured entity data."""
+    customer = ", ".join(ents.get('customer_names') or ['unknown'])
+    counterparty = ", ".join(ents.get('counterparty_names') or [])
+    banks = ", ".join(ents.get('bank_names') or [])
+    amount = ", ".join(ents.get('amounts') or [])
+    date = ", ".join(ents.get('dates') or [])
+    transaction_mode = ", ".join(ents.get('transaction_modes') or [])
+    
+    # Build structured summary with all available entities
+    parts = [f"Customer {customer} performed"]
+    
+    if transaction_mode:
+        parts.append(f"a {transaction_mode.lower()}")
+    else:
+        parts.append("a transaction")
+    
+    if amount:
+        parts.append(f"of {amount}")
+    
+    if date:
+        parts.append(f"on {date}")
+    
+    if counterparty:
+        parts.append(f"to {counterparty}")
+    
+    if banks:
+        parts.append(f"at {banks}")
+    
+    parts.append("flagged for review.")
+    
+    return " ".join(parts)
 
 def summarize_type_b(df_in):
     def _run(row):
