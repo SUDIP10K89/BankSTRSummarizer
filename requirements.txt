@@ -1,0 +1,14 @@
+pandas
+numpy
+scikit-learn
+langchain-huggingface
+huggingface-hub
+transformers
+torch
+accelerate
+sentencepiece
+bert-score
+spacy
+jupyter
+matplotlib
+seaborn
