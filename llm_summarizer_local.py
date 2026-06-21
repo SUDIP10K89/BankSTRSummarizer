@@ -1,9 +1,4 @@
-"""
-Local LLM-based STR summarization with Hugging Face transformers.
 
-Loads and runs models locally via the transformers library on GPU/CPU.
-Grounded by the entity-enriched dataset from Task 1.2.
-"""
 
 from __future__ import annotations
 
@@ -18,7 +13,7 @@ import pandas as pd
 PROJECT_ROOT = Path(__file__).resolve().parent
 INPUT_PATH = PROJECT_ROOT / "data" / "track6_reports_with_entities.csv"
 OUTPUT_PATH = PROJECT_ROOT / "data" / "track6_llm_summaries_local.csv"
-DEFAULT_MODEL_ID = "Qwen/Qwen2.5-3B-Instruct"  # Compact, fast, excellent quality  
+DEFAULT_MODEL_ID = "Qwen/Qwen2.5-3B-Instruct"  
 
 
 SYSTEM_PROMPT = """You are a financial crime analyst writing neutral STR summaries.
@@ -75,7 +70,6 @@ def clean(value: Any, fallback: str = "Not available") -> str:
 
 
 def build_user_prompt(row: pd.Series) -> str:
-    """Create the report-specific prompt body."""
     return USER_PROMPT_TEMPLATE.format(
         report_id=clean(row.get("report_id")),
         report_type=clean(row.get("report_type")),
@@ -101,7 +95,6 @@ def build_user_prompt(row: pd.Series) -> str:
 
 
 def build_messages(row: pd.Series) -> list[dict[str, str]]:
-    """Create chat messages for transformers backend."""
     return [
         {"role": "system", "content": SYSTEM_PROMPT},
         {"role": "user", "content": build_user_prompt(row)},
@@ -109,7 +102,6 @@ def build_messages(row: pd.Series) -> list[dict[str, str]]:
 
 
 class LocalLLM:
-    """Local inference via Hugging Face transformers library."""
 
     def __init__(
         self,
@@ -152,8 +144,6 @@ class LocalLLM:
         print(f"Model loaded successfully on {self.device}.")
 
     def invoke(self, messages: list[dict[str, str]]) -> str:
-        """Generate response using transformers."""
-        # Format messages for the model
         prompt_text = ""
         for msg in messages:
             if msg["role"] == "system":
@@ -173,7 +163,6 @@ class LocalLLM:
         )
 
         response = self.tokenizer.decode(outputs[0], skip_special_tokens=True)
-        # Extract only the assistant response
         if "Assistant: " in response:
             response = response.split("Assistant: ", 1)[1]
 
@@ -215,7 +204,6 @@ def select_rows(
 
 
 def load_completed_report_ids(output_path: Path) -> set[str]:
-    """Read already-generated report IDs for resumable runs."""
     if not output_path.exists():
         return set()
 

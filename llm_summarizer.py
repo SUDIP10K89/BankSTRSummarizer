@@ -1,9 +1,4 @@
-"""
-Task 3.2 LLM-based STR summarization with LangChain + Hugging Face.
 
-Uses meta-llama/Llama-3.1-70B-Instruct through Hugging Face inference, grounded
-by the entity-enriched dataset from Task 1.2.
-"""
 
 from __future__ import annotations
 
@@ -56,7 +51,6 @@ Return only the summary."""
 
 
 def clean(value: Any, fallback: str = "Not available") -> str:
-    """Return clean display text for prompt fields."""
     if value is None or pd.isna(value):
         return fallback
 
@@ -68,7 +62,6 @@ def clean(value: Any, fallback: str = "Not available") -> str:
 
 
 def build_user_prompt(row: pd.Series) -> str:
-    """Create the report-specific prompt body."""
     return USER_PROMPT_TEMPLATE.format(
         report_id=clean(row.get("report_id")),
         report_type=clean(row.get("report_type")),
@@ -94,7 +87,6 @@ def build_user_prompt(row: pd.Series) -> str:
 
 
 def build_llama_prompt(row: pd.Series) -> str:
-    """Format the prompt with Llama 3.x instruct chat tokens for dry runs."""
     user_prompt = build_user_prompt(row)
     return (
         "<|begin_of_text|>"
@@ -107,7 +99,6 @@ def build_llama_prompt(row: pd.Series) -> str:
 
 
 def build_messages(row: pd.Series) -> list[tuple[str, str]]:
-    """Create LangChain chat messages for the Hugging Face chat wrapper."""
     return [
         ("system", SYSTEM_PROMPT),
         ("human", build_user_prompt(row)),
@@ -115,7 +106,6 @@ def build_messages(row: pd.Series) -> list[tuple[str, str]]:
 
 
 def load_dotenv(path: Path = PROJECT_ROOT / ".env") -> None:
-    """Load simple KEY=VALUE entries from .env without adding a dependency."""
     if not path.exists():
         return
 
@@ -132,7 +122,6 @@ def load_dotenv(path: Path = PROJECT_ROOT / ".env") -> None:
 
 
 def load_llm(model_id: str, max_new_tokens: int, temperature: float, top_p: float):
-    """Create a LangChain Hugging Face endpoint client."""
     try:
         from langchain_huggingface import ChatHuggingFace, HuggingFaceEndpoint
     except ImportError as exc:
@@ -172,7 +161,6 @@ def select_rows(
     all_rows: bool,
     start: int,
 ) -> pd.DataFrame:
-    """Pick rows to summarize, protecting against accidental full 70B runs."""
     selected = df.iloc[start:]
     if all_rows:
         return selected
@@ -184,7 +172,6 @@ def select_rows(
 
 
 def load_completed_report_ids(output_path: Path) -> set[str]:
-    """Read already-generated report IDs for resumable large runs."""
     if not output_path.exists():
         return set()
 
@@ -193,7 +180,6 @@ def load_completed_report_ids(output_path: Path) -> set[str]:
 
 
 def append_rows(rows: list[dict[str, Any]], output_path: Path) -> None:
-    """Append generated rows to the output CSV."""
     if not rows:
         return
 
@@ -217,7 +203,6 @@ def generate_summaries(
     batch_size: int,
     resume: bool,
 ) -> pd.DataFrame:
-    """Generate summaries for selected rows."""
     completed_report_ids = load_completed_report_ids(output_path) if resume else set()
     pending = df[
         ~df["report_id"].astype(str).isin(completed_report_ids)
