@@ -1,9 +1,3 @@
-"""
-Task 1.1 data pipeline for Track 6 STR summarization.
-
-Loads STR XML reports, extracts the structured fields needed by later phases,
-classifies reports by narrative quality, and exports a Pandas-ready dataset.
-"""
 
 from __future__ import annotations
 
@@ -22,7 +16,6 @@ MINIMAL_NARRATIVE = "Suspicious transaction observed."
 
 
 def text_or_none(element: ET.Element | None, path: str) -> str | None:
-    """Return stripped XML text, or None when a tag is missing/empty."""
     if element is None:
         return None
 
@@ -35,7 +28,6 @@ def text_or_none(element: ET.Element | None, path: str) -> str | None:
 
 
 def classify_report_type(narrative: str | None) -> str:
-    """Split reports into minimal Type-A and detailed Type-B narratives."""
     cleaned = (narrative or "").strip()
     if not cleaned or cleaned == MINIMAL_NARRATIVE:
         return "Type-A"
@@ -43,7 +35,7 @@ def classify_report_type(narrative: str | None) -> str:
 
 
 def parse_report(xml_file: Path) -> dict[str, Any]:
-    """Parse one STR XML file into a flat dictionary."""
+    
     tree = ET.parse(xml_file)
     root = tree.getroot()
     transaction = root.find("transaction")

@@ -1,11 +1,3 @@
-"""
-Task 1.3 evaluation framework for Track 6 STR summarization.
-
-Evaluates generated summaries for:
-- 100-200 word length compliance
-- entity/fact preservation
-- optional ROUGE-L and BERTScore when gold summaries are available
-"""
 
 from __future__ import annotations
 
@@ -45,7 +37,6 @@ EVALUATION_COLUMNS = [
 
 
 def clean(value: Any, fallback: str = "") -> str:
-    """Return normalized text for matching."""
     if value is None or pd.isna(value):
         return fallback
 
@@ -57,12 +48,11 @@ def clean(value: Any, fallback: str = "") -> str:
 
 
 def word_count(text: Any) -> int:
-    """Count simple word tokens."""
     return len(re.findall(r"\b\w+\b", clean(text)))
 
 
 def split_entities(value: Any) -> list[str]:
-    """Split semicolon-delimited entity columns."""
+
     text = clean(value)
     if not text:
         return []
@@ -71,7 +61,7 @@ def split_entities(value: Any) -> list[str]:
 
 
 def load_entities_json(value: Any) -> dict[str, Any]:
-    """Parse the entities_json column when available."""
+    
     text = clean(value)
     if not text:
         return {}
@@ -85,12 +75,12 @@ def load_entities_json(value: Any) -> dict[str, Any]:
 
 
 def normalize_for_contains(text: Any) -> str:
-    """Normalize text for case-insensitive containment checks."""
+    
     return clean(text).casefold()
 
 
 def contains_all(summary: Any, expected_values: Iterable[Any]) -> bool:
-    """Return True when all expected string values appear in the summary."""
+   
     summary_text = normalize_for_contains(summary)
     values = [normalize_for_contains(value) for value in expected_values]
     values = [value for value in values if value]
@@ -101,7 +91,7 @@ def contains_all(summary: Any, expected_values: Iterable[Any]) -> bool:
 
 
 def extract_numeric_amounts(text: Any) -> list[Decimal]:
-    """Extract amount-like numbers, accepting comma or plain formatting."""
+   
     cleaned = clean(text)
     if not cleaned:
         return []
@@ -117,13 +107,7 @@ def extract_numeric_amounts(text: Any) -> list[Decimal]:
 
 
 def contains_amounts(summary: Any, expected_amounts: Iterable[Any]) -> bool:
-    """Compare amount preservation by numeric value, not display formatting.
-    
-    Uses flexible tolerance that scales with amount size:
-    - For amounts < 1,000: tolerance is 1.0
-    - For amounts >= 1,000: tolerance is 100 (handles rounding, formatting variations)
-    - For amounts >= 1,000,000: tolerance is 1,000
-    """
+
     expected_numbers: list[Decimal] = []
     for amount in expected_amounts:
         expected_numbers.extend(extract_numeric_amounts(amount))
@@ -133,11 +117,10 @@ def contains_amounts(summary: Any, expected_amounts: Iterable[Any]) -> bool:
 
     summary_numbers = extract_numeric_amounts(summary)
     
-    # For each expected amount, check if a close match exists in the summary
+
     for expected in expected_numbers:
         found_match = False
         for found in summary_numbers:
-            # Scale tolerance based on amount size
             if expected < 1000:
                 tolerance = Decimal("1.0")
             elif expected < 1000000:
@@ -156,27 +139,22 @@ def contains_amounts(summary: Any, expected_amounts: Iterable[Any]) -> bool:
 
 
 def normalize_date(text: Any) -> str:
-    """Normalize dates to a canonical form for comparison.
-    
-    Handles ISO format (2022-10-07), US format (10/07/2022), and variations.
-    Returns normalized string like '2022-10-07' for comparison.
-    """
+ 
     text = clean(text).strip()
     if not text:
         return ""
     
-    # Try ISO format: YYYY-MM-DD or YYYY-MM-DD with time
     iso_match = re.search(r"(\d{4})-(\d{2})-(\d{2})", text)
     if iso_match:
         return f"{iso_match.group(1)}-{iso_match.group(2)}-{iso_match.group(3)}"
     
-    # Try US format: MM/DD/YYYY
+ 
     us_match = re.search(r"(\d{1,2})/(\d{1,2})/(\d{4})", text)
     if us_match:
         month, day, year = us_match.groups()
         return f"{year}-{int(month):02d}-{int(day):02d}"
     
-    # Try EU format: DD.MM.YYYY or DD-MM-YYYY
+    
     eu_match = re.search(r"(\d{1,2})[-.](\d{1,2})[-.](\d{4})", text)
     if eu_match:
         day, month, year = eu_match.groups()
@@ -194,26 +172,20 @@ def contains_dates(summary: Any, expected_dates: Iterable[Any]) -> bool:
     if not dates:
         return True
     
-    # Check if all expected dates appear in summary (in any format)
+   
     return all(date in summary_text or normalize_date(summary_text) == date for date in dates)
 
 
 def normalize_transaction_mode(text: Any) -> str:
-    """Normalize transaction modes by extracting key terms.
-    
-    Handles paraphrasing like:
-    - 'Cash Deposit transfer' -> 'cash', 'deposit'
-    - 'wire transfer' -> 'wire'
-    - 'cross-border transfer' -> 'cross', 'border', 'transfer'
-    """
+
     text = clean(text).casefold()
     if not text:
         return ""
     
-    # Extract key transaction type keywords
+  
     keywords = set()
     
-    # Common transaction modes
+  
     mode_keywords = {
         "cash": r"cash",
         "wire": r"wire",
@@ -233,7 +205,7 @@ def normalize_transaction_mode(text: Any) -> str:
 
 
 def contains_transaction_modes(summary: Any, expected_modes: Iterable[Any]) -> bool:
-    """Check if summary contains transaction modes, handling paraphrasing."""
+   
     summary_text = clean(summary).casefold()
     modes = [normalize_transaction_mode(mode) for mode in expected_modes]
     modes = [mode for mode in modes if mode]
@@ -241,21 +213,21 @@ def contains_transaction_modes(summary: Any, expected_modes: Iterable[Any]) -> b
     if not modes:
         return True
     
-    # For each expected mode, check if its key terms appear in the summary
+    
     for mode in modes:
-        # Check exact substring match first
+        
         if mode in summary_text:
             continue
         
-        # Check if mode appears verbatim in original text
+     
         if clean(mode) in summary_text:
             continue
             
-        # Extract keywords from the expected mode
+     
         keywords = set(mode.split())
         normalized_summary_keywords = set(normalize_transaction_mode(summary_text).split())
         
-        # If at least one key keyword matches, consider it a match
+        
         if keywords & normalized_summary_keywords:
             continue
         
@@ -265,12 +237,11 @@ def contains_transaction_modes(summary: Any, expected_modes: Iterable[Any]) -> b
 
 
 def tokenize_for_rouge(text: Any) -> list[str]:
-    """Tokenize text for ROUGE-L."""
+   
     return re.findall(r"\w+", clean(text).casefold())
 
 
 def lcs_length(left: list[str], right: list[str]) -> int:
-    """Compute longest common subsequence length using a compact DP table."""
     if not left or not right:
         return 0
 
@@ -288,7 +259,6 @@ def lcs_length(left: list[str], right: list[str]) -> int:
 
 
 def rouge_l_f1(candidate: Any, reference: Any) -> float | None:
-    """Compute ROUGE-L F1 against a gold reference summary."""
     candidate_tokens = tokenize_for_rouge(candidate)
     reference_tokens = tokenize_for_rouge(reference)
     if not candidate_tokens or not reference_tokens:
@@ -304,7 +274,6 @@ def rouge_l_f1(candidate: Any, reference: Any) -> float | None:
 
 
 def evaluate_row(row: pd.Series, summary_column: str) -> dict[str, Any]:
-    """Evaluate one generated summary."""
     summary = row.get(summary_column)
     entities = load_entities_json(row.get("entities_json"))
 

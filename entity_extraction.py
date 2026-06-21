@@ -1,9 +1,4 @@
-"""
-Task 1.2 entity extraction for Track 6 STR summarization.
 
-Uses structured fields from the parsed XML dataset as the source of truth, then
-optionally enriches entities with spaCy findings from the free-text narrative.
-"""
 
 from __future__ import annotations
 
@@ -23,7 +18,6 @@ DEFAULT_SPACY_MODEL = "en_core_web_sm"
 
 
 def clean_value(value: Any) -> str | None:
-    """Normalize a scalar value from pandas/spaCy into a clean string."""
     if value is None or pd.isna(value):
         return None
 
@@ -35,7 +29,6 @@ def clean_value(value: Any) -> str | None:
 
 
 def unique(values: Iterable[Any]) -> list[str]:
-    """Return non-empty unique strings while preserving first-seen order."""
     seen: set[str] = set()
     result: list[str] = []
 
@@ -53,7 +46,6 @@ def unique(values: Iterable[Any]) -> list[str]:
 
 
 def date_only(value: Any) -> str | None:
-    """Reduce ISO datetimes to YYYY-MM-DD dates for easier matching."""
     cleaned = clean_value(value)
     if cleaned is None:
         return None
@@ -62,7 +54,6 @@ def date_only(value: Any) -> str | None:
 
 
 def amount_with_currency(amount: Any, currency: Any) -> str | None:
-    """Format amount and currency as a summary-ready entity string."""
     amount_text = clean_value(amount)
     if amount_text is None:
         return None
@@ -72,7 +63,6 @@ def amount_with_currency(amount: Any, currency: Any) -> str | None:
 
 
 def load_spacy_model(model_name: str):
-    """Load spaCy model when installed; return None when unavailable."""
     try:
         import spacy
     except ImportError:
@@ -87,7 +77,6 @@ def load_spacy_model(model_name: str):
 
 
 def extract_spacy_entities(narrative: Any, nlp) -> dict[str, list[str]]:
-    """Extract candidate entities from narrative text using spaCy."""
     if nlp is None:
         return {
             "spacy_persons": [],
@@ -118,7 +107,6 @@ def extract_spacy_entities(narrative: Any, nlp) -> dict[str, list[str]]:
 
 
 def extract_structured_entities(row: pd.Series) -> dict[str, list[str]]:
-    """Extract high-confidence entities from parsed XML/DataFrame fields."""
     return {
         "customer_names": unique([row.get("from_account_name")]),
         "counterparty_names": unique([row.get("to_account_name")]),
@@ -163,7 +151,6 @@ def extract_entities(row: pd.Series, nlp=None) -> dict[str, list[str]]:
 
 
 def add_entity_columns(df: pd.DataFrame, nlp=None) -> pd.DataFrame:
-    """Add JSON entity bundles and convenient flat columns to the dataset."""
     enriched = df.copy()
     entity_bundles = [extract_entities(row, nlp) for _, row in enriched.iterrows()]
 
@@ -188,7 +175,6 @@ def add_entity_columns(df: pd.DataFrame, nlp=None) -> pd.DataFrame:
 
 
 def print_summary(df: pd.DataFrame, output_path: Path, used_spacy: bool) -> None:
-    """Print a compact verification summary."""
     print("Track 6 entity extraction complete")
     print(f"Reports enriched: {len(df)}")
     print(f"Columns: {len(df.columns)}")
