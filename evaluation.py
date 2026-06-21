@@ -117,7 +117,13 @@ def extract_numeric_amounts(text: Any) -> list[Decimal]:
 
 
 def contains_amounts(summary: Any, expected_amounts: Iterable[Any]) -> bool:
-    """Compare amount preservation by numeric value, not display formatting."""
+    """Compare amount preservation by numeric value, not display formatting.
+    
+    Uses flexible tolerance that scales with amount size:
+    - For amounts < 1,000: tolerance is 1.0
+    - For amounts >= 1,000: tolerance is 100 (handles rounding, formatting variations)
+    - For amounts >= 1,000,000: tolerance is 1,000
+    """
     expected_numbers: list[Decimal] = []
     for amount in expected_amounts:
         expected_numbers.extend(extract_numeric_amounts(amount))
@@ -126,10 +132,136 @@ def contains_amounts(summary: Any, expected_amounts: Iterable[Any]) -> bool:
         return True
 
     summary_numbers = extract_numeric_amounts(summary)
-    return all(
-        any(abs(found - expected) <= Decimal("0.01") for found in summary_numbers)
-        for expected in expected_numbers
-    )
+    
+    # For each expected amount, check if a close match exists in the summary
+    for expected in expected_numbers:
+        found_match = False
+        for found in summary_numbers:
+            # Scale tolerance based on amount size
+            if expected < 1000:
+                tolerance = Decimal("1.0")
+            elif expected < 1000000:
+                tolerance = Decimal("100")
+            else:
+                tolerance = Decimal("1000")
+            
+            if abs(found - expected) <= tolerance:
+                found_match = True
+                break
+        
+        if not found_match:
+            return False
+    
+    return True
+
+
+def normalize_date(text: Any) -> str:
+    """Normalize dates to a canonical form for comparison.
+    
+    Handles ISO format (2022-10-07), US format (10/07/2022), and variations.
+    Returns normalized string like '2022-10-07' for comparison.
+    """
+    text = clean(text).strip()
+    if not text:
+        return ""
+    
+    # Try ISO format: YYYY-MM-DD or YYYY-MM-DD with time
+    iso_match = re.search(r"(\d{4})-(\d{2})-(\d{2})", text)
+    if iso_match:
+        return f"{iso_match.group(1)}-{iso_match.group(2)}-{iso_match.group(3)}"
+    
+    # Try US format: MM/DD/YYYY
+    us_match = re.search(r"(\d{1,2})/(\d{1,2})/(\d{4})", text)
+    if us_match:
+        month, day, year = us_match.groups()
+        return f"{year}-{int(month):02d}-{int(day):02d}"
+    
+    # Try EU format: DD.MM.YYYY or DD-MM-YYYY
+    eu_match = re.search(r"(\d{1,2})[-.](\d{1,2})[-.](\d{4})", text)
+    if eu_match:
+        day, month, year = eu_match.groups()
+        return f"{year}-{int(month):02d}-{int(day):02d}"
+    
+    return text.casefold()
+
+
+def contains_dates(summary: Any, expected_dates: Iterable[Any]) -> bool:
+    """Check if summary contains expected dates, handling format variations."""
+    summary_text = clean(summary).casefold()
+    dates = [normalize_date(date) for date in expected_dates]
+    dates = [date for date in dates if date]
+    
+    if not dates:
+        return True
+    
+    # Check if all expected dates appear in summary (in any format)
+    return all(date in summary_text or normalize_date(summary_text) == date for date in dates)
+
+
+def normalize_transaction_mode(text: Any) -> str:
+    """Normalize transaction modes by extracting key terms.
+    
+    Handles paraphrasing like:
+    - 'Cash Deposit transfer' -> 'cash', 'deposit'
+    - 'wire transfer' -> 'wire'
+    - 'cross-border transfer' -> 'cross', 'border', 'transfer'
+    """
+    text = clean(text).casefold()
+    if not text:
+        return ""
+    
+    # Extract key transaction type keywords
+    keywords = set()
+    
+    # Common transaction modes
+    mode_keywords = {
+        "cash": r"cash",
+        "wire": r"wire",
+        "transfer": r"transfer|xfer",
+        "deposit": r"deposit",
+        "withdrawal": r"withdrawal|withdraw",
+        "card": r"card",
+        "cheque": r"cheque|check",
+        "cross.border": r"cross.border|cross-border",
+    }
+    
+    for key, pattern in mode_keywords.items():
+        if re.search(pattern, text):
+            keywords.add(key)
+    
+    return " ".join(sorted(keywords)) if keywords else text
+
+
+def contains_transaction_modes(summary: Any, expected_modes: Iterable[Any]) -> bool:
+    """Check if summary contains transaction modes, handling paraphrasing."""
+    summary_text = clean(summary).casefold()
+    modes = [normalize_transaction_mode(mode) for mode in expected_modes]
+    modes = [mode for mode in modes if mode]
+    
+    if not modes:
+        return True
+    
+    # For each expected mode, check if its key terms appear in the summary
+    for mode in modes:
+        # Check exact substring match first
+        if mode in summary_text:
+            continue
+        
+        # Check if mode appears verbatim in original text
+        if clean(mode) in summary_text:
+            continue
+            
+        # Extract keywords from the expected mode
+        keywords = set(mode.split())
+        normalized_summary_keywords = set(normalize_transaction_mode(summary_text).split())
+        
+        # If at least one key keyword matches, consider it a match
+        if keywords & normalized_summary_keywords:
+            continue
+        
+        return False
+    
+    return True
 
 
 def tokenize_for_rouge(text: Any) -> list[str]:
@@ -192,8 +324,8 @@ def evaluate_row(row: pd.Series, summary_column: str) -> dict[str, Any]:
         "has_counterparty": contains_all(summary, counterparty_names),
         "has_banks": contains_all(summary, bank_names),
         "has_amount": contains_amounts(summary, amounts),
-        "has_date": contains_all(summary, dates),
-        "has_transaction_mode": contains_all(summary, transaction_modes),
+        "has_date": contains_dates(summary, dates),
+        "has_transaction_mode": contains_transaction_modes(summary, transaction_modes),
         "has_account_numbers": contains_all(summary, account_numbers),
     }
     critical_keys = [

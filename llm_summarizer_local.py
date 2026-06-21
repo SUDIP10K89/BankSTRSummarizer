@@ -28,7 +28,12 @@ Preserve facts exactly. Do not invent names, amounts, dates, banks, locations, o
 USER_PROMPT_TEMPLATE = """Write a concise Suspicious Transaction Report summary in 100-200 words.
 
 Rules:
+- CRITICAL: Use the exact date format, amounts, transaction mode, and entity names provided in the structured facts below. Copy them verbatim into your summary.
+- CRITICAL: Always include ALL bank/institution names provided in the "Banks" field. Do not omit secondary banks even if it requires more words.
 - Include every available customer name, counterparty, bank/institution name, amount, date, transaction mode, and account number.
+- When mentioning the date, use the exact format provided: {date}
+- When mentioning the transaction mode, use the exact term provided: {transaction_mode}
+- When listing banks, include all of them. If multiple banks are listed (e.g., "Bank A; Bank B"), mention both: "involving Bank A and Bank B" or "through Bank A and Bank B".
 - If a key fact is not available, say it is not available. If you intentionally exclude a key fact, state the reason briefly.
 - Use only the structured facts and narrative below. Do not add facts from outside this input.
 - If the narrative is minimal, summarize using the structured facts only.
@@ -36,22 +41,25 @@ Rules:
 - Keep a neutral analyst-facing tone that can be read in under 30 seconds.
 - The output must be one paragraph of 100-200 words.
 
-Structured facts:
+Structured facts (use exact values):
 Report ID: {report_id}
 Report type: {report_type}
 Customer: {customer}
 Counterparty: {counterparty}
-Banks: {banks}
+Banks (list all): {banks}
 Amount: {amount}
-Date: {date}
-Transaction mode: {transaction_mode}
+Date (use this format): {date}
+Transaction mode (use this exact term): {transaction_mode}
 Account numbers: {account_numbers}
 Countries: {countries}
 
 Narrative:
 {narrative}
 
-Return only the summary."""
+Return only the summary. Remember to:
+1. Use exact date format, amounts, and transaction mode from structured facts
+2. Include ALL banks/institutions from the Banks field
+3. Keep output 100-200 words"""
 
 
 def clean(value: Any, fallback: str = "Not available") -> str:
