@@ -78,7 +78,6 @@ def parse_report(xml_file: Path) -> dict[str, Any]:
 
 
 def load_reports(reports_dir: Path = REPORTS_DIR) -> pd.DataFrame:
-    """Load all report XML files into a DataFrame."""
     xml_files = sorted(reports_dir.glob("report_*.xml"))
     if not xml_files:
         raise FileNotFoundError(f"No report_*.xml files found in {reports_dir}")
@@ -88,13 +87,11 @@ def load_reports(reports_dir: Path = REPORTS_DIR) -> pd.DataFrame:
 
 
 def save_dataset(df: pd.DataFrame, output_path: Path = OUTPUT_PATH) -> None:
-    """Persist the parsed dataset for downstream analysis/modeling."""
     output_path.parent.mkdir(parents=True, exist_ok=True)
     df.to_csv(output_path, index=False)
 
 
 def print_summary(df: pd.DataFrame, output_path: Path) -> None:
-    """Print a compact pipeline summary for quick verification."""
     print("Track 6 data pipeline complete")
     print(f"Reports parsed: {len(df)}")
     print(f"Columns: {len(df.columns)}")

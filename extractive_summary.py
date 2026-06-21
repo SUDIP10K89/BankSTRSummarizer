@@ -36,10 +36,10 @@ def simple_extractive_summary(narrative, ents, max_words=180):
     sentences = split_sentences(narrative)
 
     if len(sentences) <= 1:
-        # For minimal narratives, include structured entity data
+        
         return _add_structured_entities(narrative.strip(), ents)
 
-    # Score sentences by term frequency and entity matches
+    
     terms = critical_entity_terms(ents)
     
     scored = []

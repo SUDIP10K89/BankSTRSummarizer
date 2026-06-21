@@ -124,7 +124,6 @@ def extract_structured_entities(row: pd.Series) -> dict[str, list[str]]:
 
 
 def extract_entities(row: pd.Series, nlp=None) -> dict[str, list[str]]:
-    """Create one entity bundle for a report row."""
     structured = extract_structured_entities(row)
     spacy_entities = extract_spacy_entities(row.get("narrative"), nlp)
 
